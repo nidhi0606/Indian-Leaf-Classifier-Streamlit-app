@@ -1,37 +1,59 @@
-from leaf_augmentation import multi_generator, pipeline_containers
+import os
+import numpy as np
+import keras
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-# Build CNN
-num_classes = len(pipeline_containers)
+# Dataset folder
+dataset_path = "dataset/"
+
+IMG_HEIGHT, IMG_WIDTH = 224, 224
+BATCH_SIZE = 16
+classes = ["Neem", "Mango", "Tulsi", "Banyan", "Peepal"]
+NUM_CLASSES = len(classes)
+
+# Data generators
+datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
+
+train_gen = datagen.flow_from_directory(
+    dataset_path,
+    target_size=(IMG_HEIGHT, IMG_WIDTH),
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    subset='training'
+)
+
+val_gen = datagen.flow_from_directory(
+    dataset_path,
+    target_size=(IMG_HEIGHT, IMG_WIDTH),
+    batch_size=BATCH_SIZE,
+    class_mode='categorical',
+    subset='validation'
+)
+
+# CNN model
 model = Sequential([
-    Conv2D(32, (3,3), activation="relu", input_shape=(224,224,3)),
-    MaxPooling2D((2,2)),
-    Conv2D(64, (3,3), activation="relu"),
-    MaxPooling2D((2,2)),
-    Conv2D(128, (3,3), activation="relu"),
-    MaxPooling2D((2,2)),
+    Conv2D(32, (3,3), activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH,3)),
+    MaxPooling2D(2,2),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D(2,2),
     Flatten(),
-    Dense(128, activation="relu"),
+    Dense(128, activation='relu'),
     Dropout(0.5),
-    Dense(num_classes, activation="softmax")
+    Dense(NUM_CLASSES, activation='softmax')
 ])
 
-# Compile
-model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.summary()
 
 # Train
-batch_size = 32
-steps_per_epoch = 100  # adjust based on dataset
-epochs = 20
-
 model.fit(
-    multi_generator(pipeline_containers, batch_size=batch_size),
-    steps_per_epoch=steps_per_epoch,
-    epochs=epochs
+    train_gen,
+    validation_data=val_gen,
+    epochs=10
 )
 
 # Save model
 model.save("Indian-Leaf-CNN.h5")
-print("✅ Model saved as Indian-Leaf-CNN.h5")
+print("Model saved as Indian-Leaf-CNN.h5")
